@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Image Resizer</title>
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+  <!-- JSZip CDN for ZIP Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <a href="http://nanalab.kr" target="_blank" class="logo-link" title="nanalab.kr 이동">
+        <img src="logo.png" alt="NANA LAB Logo" class="logo-img">
+      </a>
+      <div class="app-title">
+        <h1>Smart Image Resizer</h1>
+        <span class="badge">Pro Batch Engine</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="app-main">
+    <div class="main-container">
+
+      <!-- Drag & Drop Upload Zone -->
+      <section class="upload-section">
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept="image/*" class="file-input">
+          <div class="drop-zone-content">
+            <div class="icon-wrap">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <h3>이미지 파일을 이 곳으로 드래그 앤 드롭 하세요</h3>
+            <p class="drop-hint">또는 아래 버튼을 눌러 컴퓨터에서 파일을 선택하세요 (PNG, JPG, WEBP 지원)</p>
+            <button class="btn btn-primary" id="btnSelectFiles">
+              <i class="fa-solid fa-folder-open"></i> 이미지 선택하기
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings Panel (Canvas Aspect Ratio & Mode) -->
+      <section class="settings-section" id="settingsSection">
+        <div class="card settings-card">
+          <div class="card-header">
+            <h2><i class="fa-solid fa-sliders"></i> 리사이즈 옵션 설정</h2>
+          </div>
+
+          <div class="settings-grid">
+            <!-- Canvas Aspect Ratio Selection -->
+            <div class="setting-group">
+              <label class="setting-label">
+                <i class="fa-solid fa-crop-simple"></i> 캔버스 비율 선택
+              </label>
+              <div class="ratio-options" id="ratioOptions">
+                <button type="button" class="ratio-btn active" data-ratio="1:1">
+                  <span class="ratio-box r-1-1"></span> 1 : 1
+                </button>
+                <button type="button" class="ratio-btn" data-ratio="3:4">
+                  <span class="ratio-box r-3-4"></span> 3 : 4
+                </button>
+                <button type="button" class="ratio-btn" data-ratio="4:3">
+                  <span class="ratio-box r-4-3"></span> 4 : 3
+                </button>
+                <button type="button" class="ratio-btn" data-ratio="9:16">
+                  <span class="ratio-box r-9-16"></span> 9 : 16
+                </button>
+                <button type="button" class="ratio-btn" data-ratio="16:9">
+                  <span class="ratio-box r-16-9"></span> 16 : 9
+                </button>
+                <button type="button" class="ratio-btn" data-ratio="custom" id="btnCustomRatio">
+                  <i class="fa-solid fa-pen"></i> 커스텀
+                </button>
+              </div>
+
+              <!-- Custom Ratio Input (Hidden by default) -->
+              <div class="custom-ratio-inputs hidden" id="customRatioInputs">
+                <div class="input-inline">
+                  <label for="customWidth">가로 비율:</label>
+                  <input type="number" id="customWidth" value="1080" min="1" max="10000">
+                </div>
+                <span class="colon">:</span>
+                <div class="input-inline">
+                  <label for="customHeight">세로 비율:</label>
+                  <input type="number" id="customHeight" value="1080" min="1" max="10000">
+                </div>
+              </div>
+            </div>
+
+            <!-- Mode Selection (Padding vs Crop) -->
+            <div class="setting-group">
+              <label class="setting-label">
+                <i class="fa-solid fa-wand-magic-sparkles"></i> 변환 방식 선택
+              </label>
+              <div class="mode-options">
+                <label class="mode-card active" id="modePaddingLabel">
+                  <input type="radio" name="resizeMode" value="padding" checked id="modePadding">
+                  <div class="mode-icon"><i class="fa-solid fa-border-all"></i></div>
+                  <div class="mode-info">
+                    <span class="mode-title">Padding (여백 추가)</span>
+                    <span class="mode-desc">원본 해상도 손실 없이 여백을 채워 비율을 맞춤</span>
+                  </div>
+                </label>
+
+                <label class="mode-card" id="modeCropLabel">
+                  <input type="radio" name="resizeMode" value="crop" id="modeCrop">
+                  <div class="mode-icon"><i class="fa-solid fa-scissors"></i></div>
+                  <div class="mode-info">
+                    <span class="mode-title">Crop (자르기)</span>
+                    <span class="mode-desc">중앙 기준으로 여백 없이 이미지를 크롭함</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Padding Background Color Option -->
+            <div class="setting-group" id="paddingColorGroup">
+              <label class="setting-label" for="bgColorPicker">
+                <i class="fa-solid fa-palette"></i> 여백 배경색 선택
+              </label>
+              <div class="color-picker-wrap">
+                <input type="color" id="bgColorPicker" value="#ffffff" class="color-input">
+                <span class="color-code" id="colorCodeText">#FFFFFF</span>
+                <div class="quick-colors">
+                  <button type="button" class="color-swatch" style="background-color: #ffffff;" data-color="#ffffff" title="White"></button>
+                  <button type="button" class="color-swatch" style="background-color: #000000;" data-color="#000000" title="Black"></button>
+                  <button type="button" class="color-swatch" style="background-color: #f1f5f9;" data-color="#f1f5f9" title="Light Gray"></button>
+                  <button type="button" class="color-swatch" style="background-color: #0f172a;" data-color="#0f172a" title="Dark Slate"></button>
+                  <button type="button" class="color-swatch" style="background-color: #3b82f6;" data-color="#3b82f6" title="Blue"></button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Max Dimension Option -->
+            <div class="setting-group">
+              <label class="setting-label" for="maxDimensionSelect">
+                <i class="fa-solid fa-expand"></i> 기준 해상도 (긴 축 기준)
+              </label>
+              <div class="select-wrapper">
+                <select id="maxDimensionSelect" class="form-select">
+                  <option value="1080">1080px (SNS / Instagram)</option>
+                  <option value="1920" selected>1920px (Full HD)</option>
+                  <option value="2560">2560px (2K QHD)</option>
+                  <option value="3840">3840px (4K UHD)</option>
+                  <option value="original">원본 해상도 유지</option>
+                </select>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Action Bar -->
+          <div class="card-footer">
+            <button class="btn btn-secondary" id="btnClearAll">
+              <i class="fa-solid fa-trash-can"></i> 전체 삭제
+            </button>
+            <button class="btn btn-accent" id="btnStartProcess">
+              <i class="fa-solid fa-play"></i> 변환 실행하기
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Processing Queue & Thumbnails List Section -->
+      <section class="queue-section hidden" id="queueSection">
+        <div class="card queue-card">
+          <div class="queue-header">
+            <div class="queue-title-wrap">
+              <h2><i class="fa-solid fa-list-check"></i> 작업 목록 (<span id="totalCount">0</span>개)</h2>
+              <span class="queue-status-text" id="overallStatusText">대기 중...</span>
+            </div>
+            
+            <!-- Global Batch Action Button -->
+            <button class="btn btn-success" id="btnDownloadZip" disabled>
+              <i class="fa-solid fa-file-zipper"></i> 일괄 다운로드 (.ZIP)
+            </button>
+          </div>
+
+          <!-- Total Progress Bar -->
+          <div class="total-progress-wrap">
+            <div class="total-progress-bar">
+              <div class="total-progress-fill" id="totalProgressFill" style="width: 0%;"></div>
+            </div>
+            <span class="total-progress-percent" id="totalProgressPercent">0%</span>
+          </div>
+
+          <!-- Image Items List -->
+          <div class="queue-list" id="queueList">
+            <!-- Dynamically populated thumbnail items -->
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <p>© 2026 Smart Image Resizer by <a href="http://nanalab.kr" target="_blank">NANA LAB</a>. All rights reserved.</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
